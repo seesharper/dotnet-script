@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using Dotnet.Script.NuGetMetadataResolver;
 using Microsoft.Extensions.Logging;
 using System.IO;
+using Microsoft.DotNet.PlatformAbstractions;
 
 namespace Dotnet.Script.Core
 {
