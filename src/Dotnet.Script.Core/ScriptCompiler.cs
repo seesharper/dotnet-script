@@ -1,27 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using Dotnet.Script.Core.Internal;
+using Dotnet.Script.Core.Metadata;
+using Dotnet.Script.Core.NuGet;
+using Dotnet.Script.Core.ProjectSystem;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
 using Microsoft.CodeAnalysis.Scripting.Hosting;
-using Microsoft.DotNet.InternalAbstractions;
+using Microsoft.DotNet.PlatformAbstractions;
 using Microsoft.DotNet.ProjectModel;
 using Microsoft.Extensions.DependencyModel;
-using System.Runtime.InteropServices;
-using Dotnet.Script.NuGetMetadataResolver;
-using Microsoft.Extensions.Logging;
-using System.IO;
-using Microsoft.DotNet.PlatformAbstractions;
 
 namespace Dotnet.Script.Core
 {
     public class ScriptCompiler
     {
         private readonly ScriptLogger _logger;
+        private readonly ScriptProjectProvider _scriptProjectProvider;
 
         protected virtual IEnumerable<Assembly> ReferencedAssemblies => new[]
         {
@@ -46,9 +46,10 @@ namespace Dotnet.Script.Core
         // see: https://github.com/dotnet/roslyn/issues/5501
         protected virtual IEnumerable<string> SuppressedDiagnosticIds => new[] { "CS1701", "CS1702", "CS1705" };
 
-        public ScriptCompiler(ScriptLogger logger)
+        public ScriptCompiler(ScriptLogger logger, ScriptProjectProvider scriptProjectProvider)
         {
             _logger = logger;
+            _scriptProjectProvider = scriptProjectProvider;
         }
 
         public virtual ScriptOptions CreateScriptOptions(ScriptContext context)
@@ -72,7 +73,7 @@ namespace Dotnet.Script.Core
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
 
-            var runtimeIdentitfer = GetRuntimeIdentitifer();
+            var runtimeIdentitfer = RuntimeHelper.GetRuntimeIdentitifer();
             _logger.Verbose($"Current runtime is '{runtimeIdentitfer}'.");
 
             var opts = CreateScriptOptions(context);
@@ -90,60 +91,44 @@ namespace Dotnet.Script.Core
                 opts = opts.AddReferences(assembly);
             }
 
-            var runtimeContext = File.Exists(Path.Combine(context.WorkingDirectory, Project.FileName)) ? ProjectContext.CreateContextForEachTarget(context.WorkingDirectory).FirstOrDefault() : null;
-            if (runtimeContext == null)
+            IEnumerable<RuntimeDependency> runtimeDependencies;
+            var pathToProjectJson = Path.Combine(context.WorkingDirectory, Project.FileName);
+            
+            if (!File.Exists(pathToProjectJson))
             {
-                _logger.Verbose("Unable to find project context for CSX files. Will default to non-context usage.");
-                var scriptProjectProvider = ScriptProjectProvider.Create(new LoggerFactory());
-                var scriptProjectInfo = scriptProjectProvider.CreateProject(context.WorkingDirectory, "netcoreapp1.0");
-                runtimeContext = ProjectContext.CreateContextForEachTarget(scriptProjectInfo.PathToProjectJson).FirstOrDefault();
+                _logger.Verbose("Unable to find project context for CSX files. Will default to non-context usage.");                
+                var pathToCsProj = _scriptProjectProvider.CreateProject(context.WorkingDirectory);
+                var dependencyResolver = new DependencyResolver(new CommandRunner(_logger), _logger);
+                runtimeDependencies = dependencyResolver.GetRuntimeDependencies(pathToCsProj);
             }
-
-            _logger.Verbose($"Found runtime context for '{runtimeContext.ProjectFile.ProjectFilePath}'.");
-            var projectExporter = runtimeContext.CreateExporter(context.Configuration);
-
-            var runtimeDependencies = new HashSet<string>();
-            var projectDependencies = projectExporter.GetDependencies();
-
-            foreach (var projectDependency in projectDependencies)
+            else
             {
-                var runtimeAssemblyGroups = projectDependency.RuntimeAssemblyGroups;
-
-                foreach (var libraryAsset in runtimeAssemblyGroups.GetDefaultAssets())
-                {
-                    var runtimeAssemblyPath = libraryAsset.ResolvedPath;
-                    _logger.Verbose($"Discovered runtime dependency for '{runtimeAssemblyPath}'");
-                    runtimeDependencies.Add(runtimeAssemblyPath);
-                }
-
-                foreach (var runtimeAssemblyGroup in runtimeAssemblyGroups)
-                {
-                    if (!string.IsNullOrWhiteSpace(runtimeAssemblyGroup.Runtime) && runtimeAssemblyGroup.Runtime == runtimeIdentitfer)
-                    {
-                        foreach (var runtimeAsset in runtimeAssemblyGroups.GetRuntimeAssets(GetRuntimeIdentitifer()))
-                        {
-                            var runtimeAssetPath = runtimeAsset.ResolvedPath;
-                            _logger.Verbose($"Discovered runtime asset dependency ('{runtimeIdentitfer}') for '{runtimeAssetPath}'");
-                            runtimeDependencies.Add(runtimeAssetPath);
-                        }
-                    }
-                }
+                _logger.Verbose($"Found runtime context for '{pathToProjectJson}'.");
+                var dependencyResolver = new LegacyDependencyResolver(_logger);
+                runtimeDependencies = dependencyResolver.GetRuntimeDependencies(pathToProjectJson);
             }
-
+                                   
             foreach (var runtimeDep in runtimeDependencies)
             {
                 _logger.Verbose("Adding reference to a runtime dependency => " + runtimeDep);
-                opts = opts.AddReferences(MetadataReference.CreateFromFile(runtimeDep));
+                opts = opts.AddReferences(MetadataReference.CreateFromFile(runtimeDep.Path));
             }
 
             var loader = new InteractiveAssemblyLoader();
             var script = CSharpScript.Create<TReturn>(context.Code.ToString(), opts, typeof(THost), loader);
             var compilation = script.GetCompilation();
 
+            ProcessCompilationDiagnostics(compilation);
+
+            return new ScriptCompilationContext<TReturn>(script, context.Code, loader);
+        }
+
+        private void ProcessCompilationDiagnostics(Compilation compilation)
+        {
             var diagnostics = compilation.GetDiagnostics().Where(d => !SuppressedDiagnosticIds.Contains(d.Id));
-            var orderedDiagnostics = diagnostics.OrderBy((d1, d2) => 
+            var orderedDiagnostics = diagnostics.OrderBy((d1, d2) =>
             {
-                var severityDiff = (int)d2.Severity - (int)d1.Severity;
+                var severityDiff = (int) d2.Severity - (int) d1.Severity;
                 return severityDiff != 0 ? severityDiff : d1.Location.SourceSpan.Start - d2.Location.SourceSpan.Start;
             });
 
@@ -157,16 +142,6 @@ namespace Dotnet.Script.Core
                 throw new CompilationErrorException("Script compilation failed due to one or more errors.",
                     orderedDiagnostics.ToImmutableArray());
             }
-
-            return new ScriptCompilationContext<TReturn>(script, context.Code, loader);
-        }
-
-        private static string GetRuntimeIdentitifer()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)) return "osx";
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux)) return "unix";
-
-            return "win";
         }
     }
 }
