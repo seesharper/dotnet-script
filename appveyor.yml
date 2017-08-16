@@ -3,5 +3,6 @@ image: Visual Studio 2017
 build_script:
 - ps: >-
     cd .\build\
+    
     .\build.ps1
 test: off
