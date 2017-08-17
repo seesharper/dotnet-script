@@ -4,7 +4,7 @@ build_script:
 - ps: >-
     cd .\build\
 
-    .\build.ps1
+    .\install-dotnet-script.ps1
 - cmd:
     dotnet .\dotnet-script\publish\dotnet-script.dll build.csx
 

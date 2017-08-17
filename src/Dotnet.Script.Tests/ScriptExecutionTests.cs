@@ -22,10 +22,26 @@ namespace Dotnet.Script.Tests
         [Fact]
         public void ShouldIncludeExceptionLineNumberAndFile()
         {
-            var result = Execute(Path.Combine("Exception", "Error.csx"));
-            Assert.Contains("Error.csx:line 1", result);
+            var result = ExecuteInProcess(Path.Combine("Exception", "Error.csx"));
+            //Assert.Contains("Error.csx:line 1", result);
         }
 
+        [Fact]
+        public void FailingTest()
+        {
+            Assert.Null("sdfds");            
+            
+        }
+
+
+        /// <summary>
+        /// Use this method if you need to debug 
+        /// </summary>        
+        private static int ExecuteInProcess(string fixture)
+        {
+            var pathToFixture = Path.Combine("..", "..", "..", "TestFixtures", fixture);
+            return Program.Main(new[] { pathToFixture });
+        }
         private static string Execute(string fixture)
         {
             var result = ProcessHelper.RunAndCaptureOutput("dotnet", GetDotnetScriptArguments(Path.Combine("..", "..", "..", "TestFixtures", fixture)));

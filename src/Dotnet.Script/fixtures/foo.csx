@@ -1,6 +1,8 @@
 using Newtonsoft.Json;
 using AutoMapper;
 
+throw new Exception();
+
 Console.WriteLine("hello!");
 
 var test = new { hi = "i'm json!" };

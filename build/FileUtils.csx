@@ -1,4 +1,4 @@
-#load "Write.csx"
+#load "Logger.csx"
 #load "Command.csx"
 using System.Text.RegularExpressions;
 
@@ -22,7 +22,6 @@ public static class FileUtils
                 return reader.ReadToEnd();
             }
         }
-
     }
 
     public static void WriteFile(string pathToFile, string content)
@@ -34,28 +33,27 @@ public static class FileUtils
                 writer.Write(content);
             }
         }
-
     }
 
     public static string FindFile(string path, string filePattern)
     {
-        Write.Info("Looking for {0} in {1}", filePattern, path);
+        Logger.Log($"Looking for {filePattern} in {path}");
         string[] pathsToFile = Directory.GetFiles(path, filePattern, SearchOption.AllDirectories).ToArray();
         if (pathsToFile.Length > 1)
         {
-            Write.Info("Found multiple files");
+            Logger.Log("Found multiple files");
             var files = pathsToFile.Select(p => new FileInfo(p));
             var file = files.OrderBy(f => f.LastWriteTime).Last();
-            Write.Info("Choosing {0}", file.FullName);
+            Logger.Log($"Choosing {file.FullName}");
             return file.FullName;
         }
         else
         if (pathsToFile.Length == 0)
         {
-            Write.Info($"File {filePattern} not found in {path}");
+            Logger.Log($"File {filePattern} not found in {path}");
             return null;
         }
-        Write.Info($"Found {pathsToFile[0]}");
+        Logger.Log($"Found {pathsToFile[0]}");
         return pathsToFile[0];
     }
 
@@ -64,8 +62,6 @@ public static class FileUtils
         string pathToFile = FindFile(path, filePattern);
         return Path.GetDirectoryName(pathToFile);
     }
-
-
 
     public static void RemoveDirectory(string path)
     {

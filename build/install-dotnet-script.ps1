@@ -3,4 +3,4 @@ $url = "https://github.com/filipw/dotnet-script/releases/download/0.11.0-beta/do
 $file = "$pwd/dotnet-script.zip"
 $client.DownloadFile($url,$file)
 Expand-Archive $file -DestinationPath $pwd\dotnet-script -Force
-# Start-Process -FilePath 'dotnet' -ArgumentList '.\dotnet-script\publish\dotnet-script.dll build.csx' -NoNewWindow -Wait
+

@@ -23,11 +23,12 @@ namespace Dotnet.Script
             catch (Exception e)
             {
                 // Be verbose (stack trace) in debug mode otherwise brief
-                var error = args.Any(arg => arg == DebugFlagShort
-                                         || arg == DebugFlagLong)
-                          ? e.ToString()
-                          : e.GetBaseException().Message;
-                Console.Error.WriteLine(error);
+                //var error = args.Any(arg => arg == DebugFlagShort
+                //                         || arg == DebugFlagLong)
+                //          ? e.ToString()
+                //          : e.GetBaseException().Message;
+                //Console.Error.WriteLine(error);
+                
                 return 0xbad;
             }
         }
@@ -104,7 +105,7 @@ namespace Dotnet.Script
             var logger = new ScriptLogger(Console.Error, debugMode);
             var compiler = new ScriptCompiler(logger);
             var runner = new ScriptRunner(compiler, logger);
-            runner.Execute<object>(context).GetAwaiter().GetResult();
+            runner.Execute<object>(context).Wait();
         }
     }
 
