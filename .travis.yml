@@ -1,4 +1,5 @@
 install:
+  - cd build
   - install-dotnet-script.sh  
 script:  
   - dotnet dotnet-script/publish/dotnet-script.dll Build.csx
