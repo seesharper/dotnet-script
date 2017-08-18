@@ -9,40 +9,31 @@ namespace Dotnet.Script.Tests
         public void ShouldExecuteHelloWorld()
         {
             var result = Execute(Path.Combine("HelloWorld", "HelloWorld.csx"));
-            Assert.Contains("Hello World", result);
+            Assert.Contains("Hello World", result.output);
         }
 
         [Fact]
         public void ShouldExecuteScriptWithInlineNugetPackage()
         {
             var result = Execute(Path.Combine("InlineNugetPackage", "InlineNugetPackage.csx"));
-            Assert.Contains("AutoMapper.MapperConfiguration", result);
+            Assert.Contains("AutoMapper.MapperConfiguration", result.output);
         }
 
         [Fact]
         public void ShouldIncludeExceptionLineNumberAndFile()
         {
-            var result = ExecuteInProcess(Path.Combine("Exception", "Error.csx"));
-            //Assert.Contains("Error.csx:line 1", result);
+            var result = Execute(Path.Combine("Exception", "Error.csx"));
+            Assert.Contains("Error.csx:line 1", result.output);
         }
 
         [Fact]
-        public void FailingTest()
+        public static void ShouldReturnNonZeroExitCodeWhenScriptFails()
         {
-            Assert.Null("sdfds");            
-            
+            var result = Execute(Path.Combine("Exception", "Error.csx"));
+            Assert.NotEqual(0, result.exitCode);
         }
 
-
-        /// <summary>
-        /// Use this method if you need to debug 
-        /// </summary>        
-        private static int ExecuteInProcess(string fixture)
-        {
-            var pathToFixture = Path.Combine("..", "..", "..", "TestFixtures", fixture);
-            return Program.Main(new[] { pathToFixture });
-        }
-        private static string Execute(string fixture)
+        private static (string output, int exitCode) Execute(string fixture)
         {
             var result = ProcessHelper.RunAndCaptureOutput("dotnet", GetDotnetScriptArguments(Path.Combine("..", "..", "..", "TestFixtures", fixture)));
             return result;
