@@ -6,7 +6,7 @@ public static class DotNet
     public static void Test(string pathToProjectFolder)
     {
         string pathToTestProject = FindProjectFile(pathToProjectFolder);
-        Command.Execute("DotNet","test " + pathToTestProject + " --configuration Release");   
+        Command.Execute("dotnet","test " + pathToTestProject + " --configuration Release");   
     }
     
     public static void Pack(string pathToProjectFolder, string pathToPackageOutputFolder)
@@ -18,9 +18,9 @@ public static class DotNet
     public static void Build(string pathToProjectFolder)
     {
         string pathToProjectFile = FindProjectFile(pathToProjectFolder);
-        Command.Execute("DotNet","--version");
-        Command.Execute("DotNet","restore " + pathToProjectFile);        
-        Command.Execute("DotNet","build " + pathToProjectFile + " --configuration Release");   
+        Command.Execute("dotnet","--version");
+        Command.Execute("dotnet","restore " + pathToProjectFile);        
+        Command.Execute("dotnet","build " + pathToProjectFile + " --configuration Release");   
     }
 
     private static string FindProjectFile(string pathToProjectFolder)
