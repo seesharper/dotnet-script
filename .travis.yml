@@ -4,13 +4,8 @@ matrix:
     - os: linux # Ubuntu 14.04
       dist: trusty
       sudo: required
-      dotnet: 1.0.1
-    - os: osx # OSX 10.11
-      osx_image: xcode7.2
-      dotnet: 1.0.1
-    - os: osx # OSX 10.12
-      osx_image: xcode7.3
-      dotnet: 1.0.1
+      dotnet: 2.0.0
+    
 install:
   - cd build
   - ./install-dotnet-script.sh  
