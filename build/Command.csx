@@ -8,6 +8,7 @@ public static class Command
 {              
     public static void Execute(string commandPath, string arguments)
     {
+        Logger.Log($"Executing command '{commandPath}' with arguments '{arguments}'");
         var startInformation = CreateProcessStartInfo(commandPath, arguments);
         var process = CreateProcess(startInformation);                        
         RunAndWait(process);                
